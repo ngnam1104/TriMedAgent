@@ -1,0 +1,41 @@
+{
+  "triage_labels": [
+    "Chest X-ray",
+    "Brain MRI",
+    "Abdominal CT",
+    "Histopathology",
+    "Ultrasound",
+    "Dermoscopy",
+    "Gross pathology",
+    "Bone X-ray",
+    "Lung CT",
+    "Retinal fundus",
+    "Mammography"
+  ],
+  "gatekeeper_prompts": {
+    "positive": "Pathological finding, lesion, tumor, abnormality",
+    "negative": "Normal tissue, healthy anatomy, background noise, blurry area"
+  },
+  "thresholds": {
+    "triage_confidence": 0.5,
+    "gatekeeper_confidence": 0.6,
+    "low_confidence_fallback": 0.3
+  },
+  "conditional_execution": {
+    "enabled": true,
+    "skip_detection_modalities": ["Histopathology", "Dermoscopy"],
+    "require_segmentation_modalities": ["Chest X-ray", "Brain MRI", "Abdominal CT", "Lung CT"],
+    "tool_mapping": {
+      "Chest X-ray": ["grounding_dino", "medsam"],
+      "Brain MRI": ["grounding_dino", "medsam"],
+      "Abdominal CT": ["grounding_dino", "medsam"],
+      "Histopathology": ["biomedclip"],
+      "Dermoscopy": ["biomedclip"],
+      "default": ["grounding_dino"]
+    }
+  },
+  "prompt_templates": {
+    "triage_context": "[System Context: The input image is identified as {modality} with {confidence:.0%} confidence. Act as a specialist for this modality. Recommended tools: {tools}.]",
+    "low_confidence_context": "[System Context: Image modality unclear (best guess: {modality}, conf: {confidence:.0%}). Proceed with general medical analysis.]"
+  }
+}
