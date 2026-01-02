@@ -289,35 +289,82 @@ TriMedAgent áp dụng chiến lược **"Chia để trị"** qua 3 giai đoạn
 ### 4.3. File Structure
 
 ```
-MMedAgent-v2/
-├── 📄 README_TRIMEDAGENT.md      # Tài liệu này
-├── 📓 demo_trimedagent.ipynb     # Demo notebook
+TriMedAgent/
+├── 📄 README.md                  # Tài liệu chính
+├── 📄 QUICKSTART.md              # Hướng dẫn nhanh
+├── 📓 demo_trimedagent_colab.ipynb        # ⭐ Demo Colab/Kaggle (KHUYẾN NGHỊ)
+├── 📓 demo_trimedagent_orchestrator.ipynb # Demo Local + HTTP Workers
 │
-├── serve/                         # Tool Workers
-│   ├── 📄 labels.json            # ⭐ Cấu hình TriMedAgent
-│   ├── 📄 biomedclip_worker.py   # ⭐ Triage & Gatekeeper
-│   ├── 📄 controller.py          # Điều phối workers
-│   ├── 📄 grounding_dino_worker.py
-│   ├── 📄 MedSAM_worker.py
+├── src/                           # ⭐ CORE BUSINESS LOGIC
+│   ├── 📄 __init__.py            # Package exports
+│   ├── 📄 trimed_orchestrator.py # ⭐ Thin Client Orchestrator (NEW!)
+│   ├── 📄 build_sam.py           # SAM model builder
+│   └── ChatCAD_R/                # ChatCAD module
+│
+├── serve/                         # Tool Workers (Model Servers)
+│   ├── 📄 labels.json            # ⭐ Pipeline Configuration
+│   ├── 📄 biomedclip_worker.py   # ⭐ Triage & Gatekeeper (Port 21006)
+│   ├── 📄 controller.py          # Worker Coordinator (Port 20001)
+│   ├── 📄 grounding_dino_worker.py  # Detection (Port 21003)
+│   ├── 📄 MedSAM_worker.py       # Segmentation (Port 21004)
 │   └── ...
 │
 ├── llava/
 │   ├── serve/
-│   │   ├── 📄 gradio_web_server_mmedagent.py  # ⭐ Main pipeline
-│   │   ├── 📄 model_worker.py                  # LLaVA-Med worker
+│   │   ├── 📄 model_worker.py                  # LLaVA-Med (Port 21002)
 │   │   └── ...
+│   ├── 📄 conversation.py        # ⭐ Prompt templates (conv_templates)
 │   ├── model/                     # LLaVA model code
-│   ├── train/                     # Training scripts
 │   └── eval/                      # Evaluation scripts
 │
 ├── docs/                          # Documentation
-│   ├── PIPELINE_GUIDE.md
-│   ├── AGENT_ORCHESTRATION_GUIDE.md
+│   ├── 📄 DEMO_ENVIRONMENTS.md   # Hướng dẫn chạy demo
+│   ├── 📄 PIPELINE_GUIDE.md      
 │   └── ...
 │
 └── data_json/                     # Training/Eval data
-    └── ...
 ```
+
+### 4.4. Orchestrator Pattern (Kiến trúc mới)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ORCHESTRATOR PATTERN ARCHITECTURE                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │  src/trimed_orchestrator.py  (Thin Client - NO GPU)                   │ │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │ │
+│  │  │  class TriMedOrchestrator:                                      │  │ │
+│  │  │    • run_full_chain(image, query) → PipelineResult              │  │ │
+│  │  │    • _call_triage(image_b64)      → TriageResult                │  │ │
+│  │  │    • _call_llava(prompt, image)   → str                         │  │ │
+│  │  │    • _call_dino(query, image)     → DetectionResult             │  │ │
+│  │  │    • _call_gatekeeper(img, box)   → GatekeeperResult            │  │ │
+│  │  │    • _call_medsam(image, boxes)   → SegmentationResult          │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                     │                                       │
+│                                     │ HTTP (requests)                       │
+│            ┌────────────────────────┴────────────────────────┐             │
+│            ▼                        ▼                        ▼             │
+│     ┌──────────────┐         ┌──────────────┐         ┌──────────────┐    │
+│     │   LLaVA-Med  │         │  BiomedCLIP  │         │  DINO/SAM    │    │
+│     │    :21002    │         │   :21006     │         │ :21003/21004 │    │
+│     └──────────────┘         └──────────────┘         └──────────────┘    │
+│            │                        │                        │             │
+│     ┌──────▼────────────────────────▼────────────────────────▼──────┐     │
+│     │                        GPU MEMORY                              │     │
+│     └───────────────────────────────────────────────────────────────┘     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Lợi ích của Orchestrator Pattern:**
+- 🚀 **Thin Client**: Notebook/Script không cần GPU, chỉ gọi HTTP
+- 📦 **Modular**: Dễ dàng thay đổi pipeline flow
+- 🔧 **Testable**: Có thể mock workers khi test
+- 📊 **Observable**: Logging chi tiết ở mỗi stage
 
 ---
 
