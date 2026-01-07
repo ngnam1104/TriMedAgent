@@ -355,10 +355,8 @@ def create_gradio_demo(orchestrator=None):
                 with gr.Accordion("📚 Examples", open=False):
                     gr.Examples(
                         examples=[
-                            ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQwzZYDXuuzIBdCZScPmBJOGCoJXqmi73NtwQ&s", 
-                             "Find any nodules in the lungs"],
-                            ["https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Chest_radiograph_in_influenza_and_Haemophilus_influenzae_-_annotated.jpg/250px-Chest_radiograph_in_influenza_and_Haemophilus_influenzae_-_annotated.jpg",
-                             "Describe the abnormalities in this chest X-ray"],
+                            ["images/example_chest.png", "Find any nodules in the lungs"],
+                            ["images/example_mri.png", "Find any tumors in the brain"],
                         ],
                         inputs=[image_input, gr.Textbox(visible=False)],
                         label="Click to load example"
