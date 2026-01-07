@@ -42,7 +42,7 @@ class MedSAMTool:
         model_type: str = "vit_b",
         checkpoint_path: Optional[str] = None,
         device: Optional[str] = None,
-        load_on_init: bool = True
+        load_on_init: bool = False  # Changed default to False
     ):
         """
         Initialize MedSAM tool.
@@ -54,15 +54,22 @@ class MedSAMTool:
             load_on_init: Whether to load model immediately
         """
         self.model_type = model_type
-        self.checkpoint_path = checkpoint_path
+        self.checkpoint_path = checkpoint_path or "weights/medsam_vit_b.pth"
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         
         self.sam = None
+        self.medsam_model = None  # Alias for compatibility
         self.predictor = None
         self._current_image = None
         
         if load_on_init:
             self.load_model()
+    
+    # Alias for compatibility
+    def load(self):
+        """Alias for load_model (compatibility with notebook)."""
+        self.load_model()
+        return self
     
     def load_model(self) -> None:
         """Load SAM model and create predictor."""
@@ -73,19 +80,22 @@ class MedSAMTool:
             from segment_anything import sam_model_registry, SamPredictor
             
             logger.info(f"Loading SAM model ({self.model_type})...")
+            print(f"🎭 Loading MedSAM on {self.device}...")
             
             # Get checkpoint path
-            if self.checkpoint_path is None:
-                self.checkpoint_path = self._download_checkpoint()
+            checkpoint = self._download_checkpoint()
             
             # Load model
             self.sam = sam_model_registry[self.model_type](
-                checkpoint=self.checkpoint_path
-            ).to(self.device)
+                checkpoint=checkpoint
+            )
+            self.sam.to(device=self.device)
+            self.medsam_model = self.sam  # Alias
             
             self.predictor = SamPredictor(self.sam)
             
             logger.info(f"✓ SAM loaded on {self.device}")
+            print(f"✅ MedSAM loaded on {self.device}")
             
         except ImportError:
             logger.error("segment_anything not installed. Run: pip install segment-anything")
@@ -96,15 +106,22 @@ class MedSAMTool:
     
     def _download_checkpoint(self) -> str:
         """Download SAM checkpoint or find local file."""
-        # Check common local paths first
+        # Check provided checkpoint_path first
+        if self.checkpoint_path and os.path.exists(self.checkpoint_path):
+            return self.checkpoint_path
+        
+        # Check common local paths
         local_paths = [
             "weights/medsam_vit_b.pth",
             "weights/sam_vit_b_01ec64.pth",
             "/kaggle/working/weights/medsam_vit_b.pth",
+            "/kaggle/working/TriMedAgent/weights/medsam_vit_b.pth",
             "/content/TriMedAgent/weights/medsam_vit_b.pth",
+            "/content/weights/medsam_vit_b.pth",
         ]
         for path in local_paths:
             if os.path.exists(path):
+                logger.info(f"Found local checkpoint: {path}")
                 return path
         
         # Download from HuggingFace

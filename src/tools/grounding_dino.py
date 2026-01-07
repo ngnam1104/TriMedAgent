@@ -42,20 +42,20 @@ class GroundingDINOTool:
         self,
         model_name: str = "IDEA-Research/grounding-dino-tiny",
         device: Optional[str] = None,
-        box_threshold: float = 0.25,
+        box_threshold: float = 0.45,
         text_threshold: float = 0.25,
         config_path: Optional[str] = None,
         checkpoint_path: Optional[str] = None,
-        load_on_init: bool = True
+        load_on_init: bool = False  # Changed default to False
     ):
         """
         Initialize Grounding DINO tool.
         
         Args:
-            model_name: HuggingFace model name
+            model_name: HuggingFace model name (fallback if groundingdino-py not available)
             device: Device to use (auto-detect if None)
-            box_threshold: Minimum confidence for box detection
-            text_threshold: Minimum confidence for text matching
+            box_threshold: Minimum confidence for box detection (default: 0.45)
+            text_threshold: Minimum confidence for text matching (default: 0.25)
             config_path: Local path to config file (for groundingdino-py)
             checkpoint_path: Local path to checkpoint (for groundingdino-py)
             load_on_init: Whether to load model immediately
@@ -74,16 +74,48 @@ class GroundingDINOTool:
         if load_on_init:
             self.load_model()
     
+    # Alias for compatibility
+    def load(self):
+        """Alias for load_model (compatibility with notebook)."""
+        self.load_model()
+        return self
+    
     def load_model(self) -> None:
-        """Load Grounding DINO model and processor."""
+        """Load Grounding DINO model - prioritize local groundingdino-py package."""
         if self.model is not None:
             return
         
+        # Try groundingdino-py package first (preferred for local weights)
         try:
-            # Try HuggingFace Transformers first
+            from groundingdino.util.inference import load_model, predict
+            import groundingdino.datasets.transforms as T
+            
+            model_config = self._get_config_path()
+            model_weights = self._get_weights_path()
+            
+            logger.info(f"Loading Grounding DINO from local files...")
+            print(f"🎯 Loading Grounding DINO on {self.device}...")
+            
+            self.model = load_model(model_config, model_weights, device=self.device)
+            self._predict_fn = predict
+            self._transforms = T
+            self._use_transformers = False
+            
+            logger.info(f"✓ Grounding DINO loaded on {self.device} (groundingdino-py)")
+            print(f"✅ Grounding DINO loaded on {self.device}")
+            return
+            
+        except ImportError:
+            logger.info("groundingdino-py not available, trying transformers...")
+        except Exception as e:
+            logger.warning(f"Failed to load from groundingdino-py: {e}, trying transformers...")
+        
+        # Fallback to HuggingFace Transformers
+        try:
             from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
             
             logger.info(f"Loading Grounding DINO from {self.model_name}...")
+            print(f"🎯 Loading Grounding DINO from HuggingFace...")
             
             self.processor = AutoProcessor.from_pretrained(self.model_name)
             self.model = AutoModelForZeroShotObjectDetection.from_pretrained(
@@ -93,28 +125,11 @@ class GroundingDINOTool:
             self.model.eval()
             self._use_transformers = True
             logger.info(f"✓ Grounding DINO loaded on {self.device} (transformers)")
+            print(f"✅ Grounding DINO loaded on {self.device}")
             
-        except ImportError:
-            # Fall back to groundingdino-py package
-            try:
-                from groundingdino.util.inference import load_model, predict
-                import groundingdino.datasets.transforms as T
-                
-                logger.info("Loading Grounding DINO from groundingdino-py...")
-                
-                model_config = self._get_config_path()
-                model_weights = self._get_weights_path()
-                
-                self.model = load_model(model_config, model_weights, device=self.device)
-                self._predict_fn = predict
-                self._transforms = T
-                self._use_transformers = False
-                
-                logger.info(f"✓ Grounding DINO loaded on {self.device} (groundingdino-py)")
-                
-            except Exception as e:
-                logger.error(f"Failed to load Grounding DINO: {e}")
-                raise
+        except Exception as e:
+            logger.error(f"Failed to load Grounding DINO: {e}")
+            raise
     
     def _get_config_path(self) -> str:
         """Get or download model config path."""
@@ -264,7 +279,6 @@ class GroundingDINOTool:
             self._transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
         
-        image_np = np.array(image)
         image_transformed, _ = transform(image, None)
         
         # Run prediction
@@ -277,26 +291,29 @@ class GroundingDINOTool:
             device=self.device
         )
         
-        # Convert boxes from normalized to pixel coordinates
-        h, w = image.size[1], image.size[0]
-        boxes_pixel = []
+        # Convert boxes from normalized CXCYWH to pixel XYXY
+        w, h = image.size
+        boxes_xyxy = []
         for box in boxes:
-            cx, cy, bw, bh = box
-            x1 = int((cx - bw/2) * w)
-            y1 = int((cy - bh/2) * h)
-            x2 = int((cx + bw/2) * w)
-            y2 = int((cy + bh/2) * h)
-            boxes_pixel.append([x1, y1, x2, y2])
+            boxes_xyxy.append([
+                float(box[0] * w - box[2] * w / 2),
+                float(box[1] * h - box[3] * h / 2),
+                float(box[0] * w + box[2] * w / 2),
+                float(box[1] * h + box[3] * h / 2),
+            ])
+        
+        # Convert scores from Tensor to Python list (important for np.argsort)
+        scores_list = logits.cpu().tolist()
         
         if return_phrases:
             return {
-                "boxes": boxes_pixel,
-                "scores": logits.tolist(),
-                "phrases": phrases,
+                "boxes": boxes_xyxy,
+                "scores": scores_list,
+                "labels": phrases,  # Use "labels" to match notebook
                 "success": True
             }
         
-        return boxes_pixel
+        return boxes_xyxy
     
     def detect_medical(
         self,

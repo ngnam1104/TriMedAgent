@@ -53,7 +53,7 @@ class LLaVATool:
         quantize_4bit: bool = True,
         device: Optional[str] = None,
         max_new_tokens: int = 512,
-        load_on_init: bool = True
+        load_on_init: bool = False  # Changed default to False
     ):
         """
         Initialize LLaVA tool.
@@ -76,6 +76,12 @@ class LLaVATool:
         if load_on_init:
             self.load_model()
     
+    # Alias for compatibility
+    def load(self):
+        """Alias for load_model (compatibility with notebook)."""
+        self.load_model()
+        return self
+    
     def load_model(self) -> None:
         """Load LLaVA model with optional quantization."""
         if self.model is not None:
@@ -89,6 +95,7 @@ class LLaVATool:
             )
             
             logger.info(f"Loading LLaVA from {self.model_name}...")
+            print(f"🤖 Loading LLaVA on {self.device}...")
             
             if self.quantize_4bit and self.device == "cuda":
                 logger.info("Using 4-bit quantization for memory efficiency")
@@ -122,6 +129,7 @@ class LLaVATool:
                 self.processor.tokenizer.pad_token = self.processor.tokenizer.eos_token
             
             logger.info(f"✓ LLaVA loaded on {self.device}")
+            print(f"✅ LLaVA loaded on {self.device}")
             
         except ImportError as e:
             logger.error(f"Required packages not installed: {e}")
