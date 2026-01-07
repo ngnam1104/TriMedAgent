@@ -328,6 +328,14 @@ def create_gradio_demo(orchestrator=None):
         except:
             return None, example_query
     
+    # Helper to load local example safely (works in Kaggle/Colab)
+    def load_local_example(example_path: str, example_query: str):
+        try:
+            img = Image.open(example_path).convert("RGB")
+            return img, example_query
+        except Exception:
+            return None, example_query
+
     # Build Gradio interface
     with gr.Blocks(css=custom_css, title="TriMedAgent", theme=gr.themes.Soft()) as demo:
         
@@ -353,13 +361,19 @@ def create_gradio_demo(orchestrator=None):
                     enable_segmentation = gr.Checkbox(value=True, label="Enable Segmentation")
                 
                 with gr.Accordion("📚 Examples", open=False):
-                    gr.Examples(
-                        examples=[
-                            ["images/example_chest.png", "Find any nodules in the lungs"],
-                            ["images/example_mri.png", "Find any tumors in the brain"],
-                        ],
-                        inputs=[image_input, gr.Textbox(visible=False)],
-                        label="Click to load example"
+                    gr.Markdown("Select an example to preload an image and query.")
+                    with gr.Row():
+                        example_chest = gr.Button("🫁 Chest X-ray: Nodules", variant="secondary")
+                        example_mri = gr.Button("🧠 Brain MRI: Tumor", variant="secondary")
+                    
+                    # Wire example buttons
+                    example_chest.click(
+                        lambda: load_local_example("images/example_chest.png", "Find any nodules in the lungs"),
+                        outputs=[image_input, text_input]
+                    )
+                    example_mri.click(
+                        lambda: load_local_example("images/example_mri.png", "Find any tumors in the brain"),
+                        outputs=[image_input, text_input]
                     )
             
             # Right column - Chat
