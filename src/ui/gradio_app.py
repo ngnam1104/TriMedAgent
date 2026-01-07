@@ -339,7 +339,6 @@ def create_gradio_demo(orchestrator=None):
                 image_input = gr.Image(
                     label="📷 Upload Medical Image",
                     type="pil",
-                    tool="sketch",
                     height=400,
                     elem_classes="image-preview"
                 )
