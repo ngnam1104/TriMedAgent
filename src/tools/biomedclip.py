@@ -145,7 +145,6 @@ class BiomedCLIPTool:
         # Calculate similarity
         similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
         scores = similarity[0].cpu().numpy()
-            scores = similarity[0].cpu().numpy()
         
         # Get top prediction
         top_idx = int(np.argmax(scores))
