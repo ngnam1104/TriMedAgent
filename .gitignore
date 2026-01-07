@@ -205,3 +205,48 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =============================================================================
+# TriMedAgent Specific
+# =============================================================================
+
+# Model weights (large files)
+weights/
+*.pth
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+
+# Data files
+data/
+*.jsonl
+*.csv
+*.tsv
+
+# Images (except examples)
+images/*.png
+images/*.jpg
+!images/example_*.png
+!images/example_*.jpg
+
+# Kaggle/Colab specific
+/kaggle/
+sample_data/
+
+# Logs and outputs
+logs/
+outputs/
+results/
+*.log
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# API keys and secrets
+.env
+.env.local
+secrets.json
+*_credentials.json
