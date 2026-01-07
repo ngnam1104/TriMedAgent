@@ -88,16 +88,29 @@ class LLaVATool:
             return
         
         try:
+            import gc
             from transformers import (
                 LlavaForConditionalGeneration,
                 AutoProcessor,
                 BitsAndBytesConfig
             )
             
+            # Clear memory before loading large model
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
             logger.info(f"Loading LLaVA from {self.model_name}...")
             print(f"🤖 Loading LLaVA on {self.device}...")
             
-            if self.quantize_4bit and self.device == "cuda":
+            # Set max memory per GPU to avoid OOM
+            max_memory = {
+                0: "12GiB",  # Reserve some memory for other models
+                1: "12GiB",
+                "cpu": "24GiB"
+            }
+            
+            if self.quantize_4bit and "cuda" in str(self.device):
                 logger.info("Using 4-bit quantization for memory efficiency")
                 
                 bnb_config = BitsAndBytesConfig(
@@ -111,15 +124,19 @@ class LLaVATool:
                     self.model_name,
                     quantization_config=bnb_config,
                     device_map="auto",
+                    max_memory=max_memory,
                     torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True
+                    low_cpu_mem_usage=True,
+                    offload_folder="offload",  # Offload to disk if needed
                 )
             else:
                 self.model = LlavaForConditionalGeneration.from_pretrained(
                     self.model_name,
-                    torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                    device_map="auto" if self.device == "cuda" else None,
-                    low_cpu_mem_usage=True
+                    torch_dtype=torch.float16 if "cuda" in str(self.device) else torch.float32,
+                    device_map="auto" if "cuda" in str(self.device) else None,
+                    max_memory=max_memory if "cuda" in str(self.device) else None,
+                    low_cpu_mem_usage=True,
+                    offload_folder="offload",
                 )
             
             self.processor = AutoProcessor.from_pretrained(self.model_name)
@@ -127,6 +144,11 @@ class LLaVATool:
             # Set pad token if needed
             if self.processor.tokenizer.pad_token is None:
                 self.processor.tokenizer.pad_token = self.processor.tokenizer.eos_token
+            
+            # Clear cache after loading
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             
             logger.info(f"✓ LLaVA loaded on {self.device}")
             print(f"✅ LLaVA loaded on {self.device}")
