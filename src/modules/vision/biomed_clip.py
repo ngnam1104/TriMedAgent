@@ -1,11 +1,9 @@
 """
-BiomedCLIP Tool - Medical Image Classification
-=============================================
+BiomedCLIP Module
+=================
 
 Zero-shot medical image classification using BiomedCLIP model.
 Supports visual triage for detecting imaging modalities and abnormalities.
-
-Uses open_clip library for loading (more reliable than transformers).
 """
 
 from __future__ import annotations
@@ -17,46 +15,24 @@ import torch
 import numpy as np
 from PIL import Image
 
-from ..utils.image import base64_to_image
-from ..utils.constants import MODALITY_LABELS, ABNORMALITY_LABELS
+from ...utils.image import base64_to_image
+from ...utils.constants import MODALITY_LABELS, ABNORMALITY_LABELS
 
 logger = logging.getLogger(__name__)
-
-# Default BiomedCLIP model name for open_clip
-DEFAULT_MODEL = "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
-
 
 class BiomedCLIPTool:
     """
     Medical image classification using Microsoft BiomedCLIP.
-    
-    Uses open_clip library for reliable loading without HuggingFace auth issues.
-    
-    Features:
-    - Zero-shot classification with custom labels
-    - Visual triage for medical imaging modalities
-    - Abnormality detection with confidence scores
-    
-    Example:
-        tool = BiomedCLIPTool()
-        result = tool.classify(image, ["X-ray", "CT scan", "MRI"])
-        print(result)  # {"label": "X-ray", "confidence": 0.95, ...}
     """
     
+    DEFAULT_MODEL = "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
+
     def __init__(
         self,
         model_name: str = DEFAULT_MODEL,
         device: Optional[str] = None,
-        load_on_init: bool = False  # Changed default to False
+        load_on_init: bool = False
     ):
-        """
-        Initialize BiomedCLIP tool.
-        
-        Args:
-            model_name: Model name for open_clip (hf-hub: prefix)
-            device: Device to use (auto-detect if None)
-            load_on_init: Whether to load model immediately
-        """
         self.model_name = model_name
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         
@@ -76,9 +52,7 @@ class BiomedCLIPTool:
             import open_clip
             
             logger.info(f"Loading BiomedCLIP from {self.model_name}...")
-            print(f"📥 Loading BiomedCLIP on {self.device}...")
             
-            # Use open_clip to load model (no auth required)
             self.model, self.preprocess, _ = open_clip.create_model_and_transforms(
                 self.model_name,
                 device=self.device
@@ -87,15 +61,13 @@ class BiomedCLIPTool:
             
             self.model.eval()
             logger.info(f"✓ BiomedCLIP loaded on {self.device}")
-            print(f"✅ BiomedCLIP loaded on {self.device}")
             
         except Exception as e:
             logger.error(f"Failed to load BiomedCLIP: {e}")
             raise
-    
+
     # Alias for compatibility
     def load(self):
-        """Alias for load_model (compatibility with notebook)."""
         self.load_model()
         return self
     
@@ -106,20 +78,6 @@ class BiomedCLIPTool:
         labels: Optional[List[str]] = None,
         return_all: bool = False
     ) -> Dict[str, Any]:
-        """
-        Classify image using zero-shot classification.
-        
-        Args:
-            image: PIL Image or base64 string
-            labels: List of class labels (uses MODALITY_LABELS if None)
-            return_all: If True, return scores for all labels
-            
-        Returns:
-            Dictionary with classification results:
-            - label: Top predicted label
-            - confidence: Confidence score (0-1)
-            - all_scores: (if return_all) Dict of all label scores
-        """
         self.load_model()
         
         if isinstance(image, str):
@@ -128,25 +86,18 @@ class BiomedCLIPTool:
         if labels is None:
             labels = MODALITY_LABELS
         
-        # Preprocess image using open_clip transform
         image_input = self.preprocess(image).unsqueeze(0).to(self.device)
-        
-        # Tokenize labels
         text_inputs = self.tokenizer(labels).to(self.device)
         
-        # Get features
         image_features = self.model.encode_image(image_input)
         text_features = self.model.encode_text(text_inputs)
         
-        # Normalize
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         
-        # Calculate similarity
         similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
         scores = similarity[0].cpu().numpy()
         
-        # Get top prediction
         top_idx = int(np.argmax(scores))
         
         result = {
@@ -170,19 +121,7 @@ class BiomedCLIPTool:
     ) -> Dict[str, Any]:
         """
         Visual triage: classify modality and detect abnormality.
-        
-        Args:
-            image: PIL Image or base64 string
-            detect_abnormality: Also check for abnormalities
-            
-        Returns:
-            Dictionary with:
-            - modality: Detected imaging modality
-            - modality_confidence: Confidence score
-            - abnormality: (if detect_abnormality) Detected abnormality
-            - abnormality_confidence: (if detect_abnormality) Confidence
         """
-        # Classify modality
         modality_result = self.classify(
             image,
             labels=MODALITY_LABELS,
@@ -196,7 +135,6 @@ class BiomedCLIPTool:
             "success": True
         }
         
-        # Detect abnormality
         if detect_abnormality:
             abnormality_result = self.classify(
                 image,
@@ -221,9 +159,3 @@ class BiomedCLIPTool:
             
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            
-            logger.info("BiomedCLIP unloaded")
-    
-    def __repr__(self) -> str:
-        status = "loaded" if self.model is not None else "not loaded"
-        return f"BiomedCLIPTool(model={self.model_name}, status={status}, device={self.device})"

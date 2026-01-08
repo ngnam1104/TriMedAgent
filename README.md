@@ -1,70 +1,102 @@
-# 🏥 TriMedAgent: Hybrid ReAct Medical AI Agent
+# 🏥 TriMed-Agent V2: State-based Medical AI Agent
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-red.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/)
+[![HuggingFace](https://img.shields.io/badge/🤗-Models-yellow.svg)](https://huggingface.co/)
 
-> **TriMedAgent V2** - SOTA Medical AI Agent với kiến trúc **Hybrid ReAct**: Plan → Zoom → Verify
+> **TriMed-Agent V2** - Hệ thống AI Y tế với kiến trúc **State-based ReAct**
 > 
-> Giải quyết vấn đề "box quá to" khi detect small pathologies như lung nodules
+> 🧠 **Logic Router** → 📚 **RAG/Planner** → 🔧 **ToolKit** → ✅ **Verification**
 
 ---
 
 ## 🌟 What's New in V2
 
-| Feature | V1 (Linear) | V2 (Hybrid ReAct) |
-|---------|-------------|-------------------|
-| **Architecture** | Linear pipeline | ReAct Loop + Coarse-to-Fine |
-| **Small Object Detection** | ❌ Often fails | ✅ Zoom-in strategy |
-| **Planning** | Fixed intent parsing | LLaVA Strategic Planner |
-| **Verification** | Simple gatekeeper | Size + Semantic validation |
-| **Box Size Control** | No control | Automatic rejection if > threshold |
+| Feature | V1 (Linear) | V2 (State-based) |
+|---------|-------------|------------------|
+| **Architecture** | Linear pipeline | ReAct Loop + State Machine |
+| **Intent Routing** | ❌ Fixed | ✅ Logic Router (Theory/Diagnosis) |
+| **Knowledge** | Parametric only | RAG + Parametric |
+| **Planning** | Rule-based | LLaVA-Med + LoRA (JSON output) |
+| **Training** | Pretrained | **SFT → RL (GRPO)** |
+| **Small Objects** | Often fails | Smart Zoom + Fallback |
 
 ---
 
-## 🧠 Hybrid ReAct Architecture
+## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     HYBRID ReAct AGENT                       │
-│                                                              │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐ │
-│  │   PLANNER    │────▶│   EXECUTOR   │────▶│   VERIFIER   │ │
-│  │   (LLaVA)    │     │ (DINO+SAM)   │     │   (LLaVA)    │ │
-│  └──────────────┘     └──────────────┘     └──────────────┘ │
-│         │                    │                    │         │
-│         │              ┌─────▼─────┐              │         │
-│         │              │  ZOOMER   │◀─────────────┘         │
-│         │              │(Crop/Map) │  (retry if failed)     │
-│         │              └───────────┘                        │
-│         │                    │                              │
-│         └────────────────────┴───────────────────────────── │
-│                         ▼                                    │
-│                  ┌─────────────┐                            │
-│                  │ SYNTHESIZER │                            │
-│                  │  (Report)   │                            │
-│                  └─────────────┘                            │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        TriMed-Agent V2 System                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   User Input (Image + Query)                                            │
+│         │                                                                │
+│         ▼                                                                │
+│   ┌─────────────────────────────────────┐                               │
+│   │         LOGIC ROUTER                 │                               │
+│   │   Intent: Theory (0.3) / Diagnosis   │                               │
+│   └──────────────┬──────────────────────┘                               │
+│                  │                                                       │
+│        ┌─────────┴─────────┐                                            │
+│        ▼                   ▼                                            │
+│   ┌─────────┐      ┌─────────────────────────────────────────────┐     │
+│   │   RAG   │      │            PLANNER (LLaVA-Med + LoRA)        │     │
+│   │ Module  │      │  ┌─────────────────────────────────────────┐ │     │
+│   │         │      │  │              ReAct Loop                 │ │     │
+│   │PubMedBERT│     │  │  Thought → Plan → Action → Observation  │ │     │
+│   │ + FAISS │      │  └─────────────────────────────────────────┘ │     │
+│   └────┬────┘      └───────────────────┬─────────────────────────┘     │
+│        │                               │                                │
+│        │                               ▼                                │
+│        │           ┌─────────────────────────────────────────────┐     │
+│        │           │                TOOLKIT                       │     │
+│        │           │  BiomedCLIP │ DINO │ MedSAM │ Zoom │ Gate   │     │
+│        │           └─────────────────────────────────────────────┘     │
+│        │                               │                                │
+│        └───────────────┬───────────────┘                               │
+│                        ▼                                                │
+│                 Final Response                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### The Problem (V1)
-```
-Query: "Find nodules in right lung"
-→ DINO detects ENTIRE lung (box ratio > 40%)
-→ MedSAM segments entire lung
-→ WRONG!
+📖 **Chi tiết kiến trúc**: [docs/ARCHITECTURE_V2.md](docs/ARCHITECTURE_V2.md)
+
+---
+
+## 🎯 Key Features
+
+### 1. Logic Router (Intent Classification)
+```python
+# Tự động phân loại câu hỏi
+"Viêm phổi là gì?" → Theory → RAG Module
+"Ảnh này có tổn thương không?" → Diagnosis → Planner
 ```
 
-### The Solution (V2)
+### 2. RAG Module (Medical Knowledge)
+```python
+# Trả lời câu hỏi lý thuyết với kiến thức y khoa
+from src import MedicalRAG
+
+rag = MedicalRAG()
+answer = rag.query("Triệu chứng của COVID-19 trên X-quang?")
 ```
-Query: "Find nodules in right lung"
-→ LLaVA Planner: {target: "nodule", size: "tiny", region: "right_lung", strategy: "zoom_in"}
-→ Zoomer: Crop to right lung region
-→ DINO on cropped: Finds small nodule (box ratio < 5%)
-→ Verifier: ✓ Size OK, ✓ Semantic check passed
-→ Map coordinates back to original
-→ MedSAM segments nodule precisely
-→ CORRECT!
+
+### 3. Planner (Structured JSON Output)
+```python
+# LLaVA-Med sinh ra kế hoạch có cấu trúc
+{
+  "thought": "Cần xác định loại ảnh trước",
+  "action": "BiomedCLIP", 
+  "action_input": {"task": "classify"}
+}
+```
+
+### 4. Two-Stage Training
+```
+Stage 1: SFT (LoRA)     →  Học cách sinh JSON
+Stage 2: RL (GRPO)      →  Tối ưu chiến lược
 ```
 
 ---
@@ -73,19 +105,36 @@ Query: "Find nodules in right lung"
 
 ```
 TriMedAgent/
-├── src/                         # 🔧 Core modules
-│   ├── __init__.py             # Package exports
-│   ├── utils.py                # Image utilities
-│   ├── biomedclip_tool.py      # Visual triage
-│   ├── grounding_dino_tool.py  # Object detection
-│   ├── medsam_tool.py          # Segmentation
-│   ├── llava_tool.py           # Visual reasoning (4-bit)
-│   ├── rag_engine.py           # Medical RAG with Groq
-│   └── orchestrator_v2.py      # 🆕 Hybrid ReAct Agent
-├── images/                      # Sample images
-├── demo_trimedagent_colab.ipynb # 📓 Demo notebook
-├── pyproject.toml              # Dependencies
-└── README.md                   # This file
+├── src/
+│   ├── core/
+│   │   ├── orchestrator.py      # Main ReAct loop
+│   │   ├── logic_router.py      # Intent classification
+│   │   └── state.py             # Agent state
+│   ├── modules/
+│   │   ├── brain/
+│   │   │   └── planner.py       # LLaVA Planner
+│   │   ├── knowledge/
+│   │   │   └── rag_engine.py    # RAG with PubMedBERT
+│   │   ├── vision/
+│   │   │   ├── biomed_clip.py
+│   │   │   ├── dino_detector.py
+│   │   │   └── zoom_processor.py
+│   │   └── segmentation/
+│   │       └── medsam_wrapper.py
+│   └── training/
+│       ├── sft_trainer.py       # SFT with LoRA
+│       └── grpo_trainer.py      # GRPO RL
+├── scripts/
+│   ├── train_sft.py             # 🆕 SFT training script
+│   ├── train_rl_grpo.py         # 🆕 RL training script
+│   └── merge_adapters.py
+├── configs/
+│   ├── config.yaml
+│   ├── sft_config.yaml          # 🆕 SFT config
+│   └── rl_config.yaml           # 🆕 RL config
+├── docs/
+│   └── ARCHITECTURE_V2.md       # 🆕 Detailed architecture
+└── demo_colab_1xt4.ipynb
 ```
 
 ---
@@ -96,252 +145,130 @@ TriMedAgent/
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/)
 
-1. Upload `demo_trimedagent_colab.ipynb` to Colab
-2. Select Runtime → Change runtime type → **T4 GPU**
-3. Run all cells!
+```bash
+# Upload demo_colab_1xt4.ipynb to Colab
+# Select Runtime → T4 GPU → Run all cells
+```
 
 ### Option 2: Local Installation
 
 ```bash
-# Clone repository
-git clone https://github.com/your-repo/TriMedAgent.git
+git clone https://github.com/ngnam1104/TriMedAgent.git
 cd TriMedAgent
-
-# Install dependencies
 pip install -e .
-
-# Or manual install
-pip install torch transformers accelerate bitsandbytes
-pip install gradio pillow numpy scipy
-pip install segment-anything groundingdino-py
-pip install groq sentence-transformers
 ```
 
 ---
 
 ## 💻 Usage
 
-### Basic Usage with Hybrid ReAct
+### Basic Inference
 
 ```python
-from src import HybridReActOrchestrator
+from src import TriMedOrchestrator
 from PIL import Image
 
-# Load image
-image = Image.open("chest_xray.jpg")
-
-# Initialize orchestrator
-orchestrator = HybridReActOrchestrator(
-    max_iterations=3,           # ReAct loop iterations
-    enable_verification=True    # LLaVA semantic verification
-)
-orchestrator.load_tools(llava_quantize=True)  # 4-bit for T4 GPU
-
-# Process with automatic zoom for small objects
-result = orchestrator.process(image, "Find any nodules in the right lung")
-
-# Access results
-print(f"Strategy used: {result.strategic_plan.strategy.value}")
-print(f"Target size: {result.strategic_plan.target_size.value}")
-print(f"Detected: {len(result.verified_boxes)} regions")
-print(f"ReAct iterations: {result.agent_iterations}")
-print(result.llava_analysis)
-```
-
-### Understanding the Strategic Plan
-
-```python
-# The planner automatically generates a strategy
-plan = result.strategic_plan
-
-print(f"Target: {plan.target_object}")        # "nodule"
-print(f"Size: {plan.target_size.value}")      # "tiny" 
-print(f"Location: {plan.anatomical_location}") # "right_upper_lobe"
-print(f"Strategy: {plan.strategy.value}")      # "zoom_in"
-print(f"Detection prompt: {plan.detection_prompt}")  # "small nodule. white spot."
-```
-
-### Manual Strategy Override
-
-```python
-from src import Strategy, TargetSize, StrategicPlan
-
-# Create custom plan
-custom_plan = StrategicPlan(
-    target_object="tumor",
-    target_size=TargetSize.SMALL,
-    anatomical_location="liver",
-    strategy=Strategy.ZOOM_IN,
-    detection_prompt="tumor. mass. hepatic lesion.",
-    confidence_threshold=0.2
-)
-
-# Use with orchestrator
-result = orchestrator.process(image, "Find liver tumor", plan=custom_plan)
-```
-print(result.llava_response)
-print(f"Detected: {len(result.verified_boxes)} regions")
-```
-
-### With Gradio UI
-
-```python
-import gradio as gr
-from src import HybridReActOrchestrator
-
 # Initialize
-orchestrator = HybridReActOrchestrator()
-orchestrator.load_tools()
+config = {"device": {"llava_device": "cuda:0"}}
+agent = TriMedOrchestrator(config)
 
-def analyze(image, question):
-    result = orchestrator.process(image, question)
-    info = f"""
-**Strategy:** {result.strategic_plan.strategy.value}
-**Target Size:** {result.strategic_plan.target_size.value}
-**Iterations:** {result.agent_iterations}
-**Detections:** {len(result.verified_boxes)}
+# Process
+image = Image.open("chest_xray.jpg")
+result = agent.process(image, "Có tổn thương phổi không?")
 
-{result.llava_analysis}
-"""
-    return result.annotated_image, info
-
-# Create UI
-demo = gr.Interface(
-    fn=analyze,
-    inputs=[gr.Image(type="pil"), gr.Textbox(label="Question")],
-    outputs=[gr.Image(label="Result"), gr.Markdown(label="Analysis")]
-)
-demo.launch()
+print(result.final_report)
 ```
 
----
+### With RAG (Theoretical Questions)
 
-## 🔧 Detection Strategies
-
-### Strategy Types
-
-| Strategy | When Used | How It Works |
-|----------|-----------|--------------|
-| `GLOBAL_SCAN` | Large objects, unknown location | Full image detection |
-| `ZOOM_IN` | Small objects (nodules) with known region | Crop → Detect → Map back |
-| `MULTI_SCALE` | Uncertain size | Full + Grid detection |
-| `SLIDING_WINDOW` | Very small objects | Overlapping grid scan |
-
-### Target Size Thresholds
-
-| Size | Max Box Ratio | Examples |
-|------|---------------|----------|
-| `TINY` | 5% | Nodules, calcifications |
-| `SMALL` | 15% | Lesions, small tumors |
-| `MEDIUM` | 35% | Organs, larger tumors |
-| `LARGE` | 60% | Full organs, diffuse patterns |
-
-### Anatomical Regions (Pre-defined)
-
-```python
-# Chest X-ray
-"right_lung", "left_lung", "right_upper_lobe", "right_lower_lobe"
-"left_upper_lobe", "left_lower_lobe", "heart", "mediastinum"
-
-# Abdominal CT
-"liver", "spleen", "right_kidney", "left_kidney", "pancreas"
-
-# Brain MRI
-"frontal_lobe", "temporal_lobe_left", "temporal_lobe_right"
-"occipital_lobe", "cerebellum"
-
-# Generic
-"upper_left", "upper_right", "lower_left", "lower_right", "center"
-```
-
----
-
-## 📊 ReAct Loop Flow
-
-```
-Iteration 1:
-├─ THINK: "Starting detection for 'nodule' (size: tiny, strategy: zoom_in) in 'right_lung'"
-├─ ACT: Crop to right_lung → DINO detect → Map boxes back
-├─ OBSERVE: Box ratio 3% ✓, Semantic verify ✓
-└─ RESULT: SUCCESS (1 valid detection)
-
-Iteration 2 (if needed):
-├─ THINK: "Previous action was 'reject_size'. Trying with stricter threshold."
-├─ ACT: Zoom tighter or use fallback region
-├─ OBSERVE: Re-validate
-└─ RESULT: SUCCESS or retry
-```
-
----
-
-## 🔬 Tool Details
-
-### BiomedCLIPTool
-```python
-from src import BiomedCLIPTool
-
-clip = BiomedCLIPTool()
-result = clip.triage(image)
-# Returns: modality, modality_confidence, abnormality, abnormality_confidence
-```
-
-### LLaVATool (4-bit Quantization)
-```python
-from src import LLaVATool
-
-llava = LLaVATool(quantize_4bit=True)  # For T4 GPU
-response = llava.query(image, "What abnormalities are present?")
-```
-
-### GroundingDINOTool
-```python
-from src import GroundingDINOTool
-
-dino = GroundingDINOTool()
-boxes = dino.detect(image, "tumor. mass. lesion.")
-# Returns: [[x1, y1, x2, y2], ...]
-```
-
-### MedSAMTool
-```python
-from src import MedSAMTool
-
-medsam = MedSAMTool()
-masks = medsam.segment(image, boxes=[[100, 100, 200, 200]])
-# Returns: [numpy.ndarray, ...]
-```
-
-### MedicalRAG
 ```python
 from src import MedicalRAG
 
-# Requires GROQ_API_KEY environment variable
-rag = MedicalRAG()
-response = rag.query("What is the treatment for pneumonia?")
+rag = MedicalRAG(api_key="your-groq-key")
+response = rag.query("Viêm phổi do vi khuẩn điều trị như thế nào?")
 print(response.answer)
 ```
 
 ---
 
-## ⚙️ Configuration
+## 🎓 Training Pipeline
 
-### Environment Variables
+### Stage 1: SFT (Supervised Fine-Tuning)
 
 ```bash
-# For RAG functionality
-export GROQ_API_KEY="your-groq-api-key"
-
-# For Colab secrets
-# Add GROQ_API_KEY in Colab's Secrets panel
+# Train LoRA adapter to output structured JSON
+python scripts/train_sft.py \
+    --base_model "chaoyinshe/llava-med-v1.5-mistral-7b-hf" \
+    --dataset "data/sft_dataset" \
+    --output_dir "outputs/sft-v1" \
+    --lora_r 64 \
+    --lora_alpha 128 \
+    --epochs 3
 ```
 
-### GPU Memory
+### Stage 2: RL (GRPO)
 
-| GPU | LLaVA Mode | Memory Usage |
-|-----|------------|--------------|
-| T4 (16GB) | 4-bit | ~8GB |
-| A100 (40GB) | Full | ~14GB |
-| L4 (24GB) | 4-bit/Full | ~8-14GB |
+```bash
+# Continue training with RL to optimize policy
+python scripts/train_rl_grpo.py \
+    --base_model "chaoyinshe/llava-med-v1.5-mistral-7b-hf" \
+    --sft_adapter "outputs/sft-v1" \
+    --output_dir "outputs/rl-v1" \
+    --reward_weights "0.3,0.4,0.2,0.1"
+```
+
+### Upload to HuggingFace
+
+```bash
+# Push adapter to HF Hub
+huggingface-cli upload ngnam1104/TriMedAgent-V2 outputs/rl-v1
+```
+
+📖 **Chi tiết training**: [docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md)
+
+---
+
+## 📊 Reward Function (RL)
+
+$$R_{total} = 0.3 \cdot R_{IoU} + 0.4 \cdot R_{Acc} + 0.2 \cdot R_{Format} + 0.1 \cdot R_{Step}$$
+
+| Component | Description |
+|-----------|-------------|
+| $R_{IoU}$ | IoU với ground truth boxes |
+| $R_{Acc}$ | Độ chính xác câu trả lời |
+| $R_{Format}$ | JSON hợp lệ (+1) / Sai (-1) |
+| $R_{Step}$ | Penalty mỗi bước (-0.1) |
+
+---
+
+## 🔧 Tools
+
+| Tool | Model | Purpose |
+|------|-------|---------|
+| `BiomedCLIP` | microsoft/BiomedCLIP | Image triage |
+| `GroundingDINO` | IDEA-Research | Detection |
+| `MedSAM` | SAM-ViT-B | Segmentation |
+| `ZoomProcessor` | Custom | Smart crop |
+| `Gatekeeper` | LLaVA-Med | Verification |
+
+---
+
+## ⚙️ Requirements
+
+- Python 3.10+
+- CUDA 11.8+
+- GPU: T4 (16GB) hoặc cao hơn
+
+### Key Dependencies
+
+```
+torch>=2.0
+transformers>=4.36
+peft>=0.7  # LoRA
+trl>=0.7   # GRPO training
+accelerate
+bitsandbytes
+```
 
 ---
 
@@ -353,10 +280,8 @@ Apache 2.0 License
 
 ## 🙏 Acknowledgments
 
-- [MedRAX](https://arxiv.org/abs/2406.xxxxx) - ReAct Loop inspiration
-- [MMedAgent](https://arxiv.org/abs/2406.xxxxx) - Coarse-to-Fine strategy
-- [LLaVA-Med](https://github.com/microsoft/LLaVA-Med) - Medical visual reasoning
-- [BiomedCLIP](https://huggingface.co/microsoft/BiomedCLIP-PubMedBERT_PMC-ViT-B-16-224) - Medical image classification
-- [Grounding DINO](https://github.com/IDEA-Research/GroundingDINO) - Object detection
-- [Segment Anything](https://github.com/facebookresearch/segment-anything) - Segmentation
-- [Groq](https://groq.com/) - Fast LLM inference
+- [ReAct](https://arxiv.org/abs/2210.03629) - Reasoning + Acting
+- [GRPO](https://arxiv.org/abs/2402.03300) - DeepSeek-R1
+- [LLaVA-Med](https://github.com/microsoft/LLaVA-Med)
+- [PubMedBERT](https://huggingface.co/microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract)
+- [LoRA](https://arxiv.org/abs/2106.09685)

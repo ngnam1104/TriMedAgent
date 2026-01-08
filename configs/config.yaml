@@ -1,0 +1,31 @@
+models:
+  llava:
+    path: "chaoyinshe/llava-med-v1.5-mistral-7b-hf"
+    quantization: "4bit"
+    max_tokens: 512
+  
+  grounding_dino:
+    config_path: "weights/GroundingDINO_SwinT_OGC.py"
+    weights_path: "weights/groundingdino_swint_ogc.pth"
+    box_threshold: 0.35
+    text_threshold: 0.25
+
+  medsam:
+    checkpoint: "weights/medsam_vit_b.pth"
+    model_type: "vit_b"
+
+  biomedclip:
+    model_name: "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
+
+paths:
+  weights_dir: "weights/"
+  data_dir: "data/"
+
+execution:
+  max_iterations: 3
+  enable_verification: true
+  enable_zoom: true
+
+device:
+  llava_device: "cuda:0"
+  tool_device: "cuda:0"

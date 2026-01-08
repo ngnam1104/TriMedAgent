@@ -192,31 +192,280 @@ def create_gradio_demo(orchestrator=None):
     # State
     state = ConversationState()
     
-    # CSS for beautiful UI
+    # Premium CSS for beautiful medical UI
     custom_css = """
-    .container { max-width: 1200px; margin: auto; }
-    .header { text-align: center; margin-bottom: 20px; }
-    .header h1 { color: #2c3e50; font-size: 2.5em; }
-    .header p { color: #7f8c8d; }
-    .chat-container { border-radius: 10px; }
-    .image-preview { border-radius: 10px; border: 2px dashed #3498db; }
-    .result-image { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .status-box { padding: 10px; border-radius: 8px; background: #f8f9fa; }
+    /* === Global Styles === */
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        --medical-blue: #0077b6;
+        --medical-teal: #00b4d8;
+        --success-green: #2ecc71;
+        --warning-orange: #f39c12;
+        --error-red: #e74c3c;
+        --bg-dark: #1a1a2e;
+        --bg-card: #16213e;
+        --text-light: #eef2f7;
+        --border-radius: 16px;
+    }
+    
+    .gradio-container {
+        background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%) !important;
+        font-family: 'Inter', 'Segoe UI', sans-serif !important;
+    }
+    
+    /* === Header === */
+    .header-banner {
+        background: var(--primary-gradient);
+        padding: 24px 32px;
+        border-radius: var(--border-radius);
+        margin-bottom: 24px;
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+    }
+    
+    .header-banner h1 {
+        color: white !important;
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .header-banner p {
+        color: rgba(255,255,255,0.9) !important;
+        font-size: 1.1rem !important;
+        margin-top: 8px !important;
+    }
+    
+    /* === Feature Pills === */
+    .feature-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 16px;
+    }
+    
+    .feature-pill {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        padding: 8px 16px;
+        border-radius: 20px;
+        color: white;
+        font-size: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    /* === Cards === */
+    .glass-card {
+        background: rgba(255,255,255,0.05) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: var(--border-radius) !important;
+        padding: 20px !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
+    }
+    
+    /* === Image Upload === */
+    .image-upload-area {
+        border: 2px dashed var(--medical-teal) !important;
+        border-radius: var(--border-radius) !important;
+        background: rgba(0, 180, 216, 0.05) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .image-upload-area:hover {
+        border-color: var(--medical-blue) !important;
+        background: rgba(0, 119, 182, 0.1) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    /* === Chat Container === */
+    .chat-container {
+        background: rgba(255,255,255,0.03) !important;
+        border-radius: var(--border-radius) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+    }
+    
+    .chat-container .message {
+        padding: 12px 16px !important;
+        margin: 8px !important;
+        border-radius: 12px !important;
+    }
+    
+    .chat-container .user {
+        background: var(--primary-gradient) !important;
+        color: white !important;
+        margin-left: 20% !important;
+    }
+    
+    .chat-container .bot {
+        background: rgba(255,255,255,0.08) !important;
+        color: var(--text-light) !important;
+        margin-right: 20% !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+    
+    /* === Buttons === */
+    .btn-primary {
+        background: var(--primary-gradient) !important;
+        border: none !important;
+        color: white !important;
+        padding: 12px 24px !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6) !important;
+    }
+    
+    .btn-secondary {
+        background: rgba(255,255,255,0.1) !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        color: var(--text-light) !important;
+        padding: 10px 20px !important;
+        border-radius: 10px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .btn-secondary:hover {
+        background: rgba(255,255,255,0.15) !important;
+        border-color: rgba(255,255,255,0.3) !important;
+    }
+    
+    /* === Result Image === */
+    .result-display {
+        border-radius: var(--border-radius) !important;
+        overflow: hidden !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+        border: 2px solid var(--success-green) !important;
+    }
+    
+    /* === Settings Accordion === */
+    .accordion {
+        background: rgba(255,255,255,0.03) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        border-radius: 12px !important;
+        margin-top: 16px !important;
+    }
+    
+    .accordion-header {
+        color: var(--text-light) !important;
+        font-weight: 500 !important;
+    }
+    
+    /* === Sliders & Inputs === */
+    input[type="range"] {
+        accent-color: var(--medical-teal) !important;
+    }
+    
+    input[type="text"], textarea {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        color: var(--text-light) !important;
+        border-radius: 10px !important;
+        padding: 12px 16px !important;
+    }
+    
+    input[type="text"]:focus, textarea:focus {
+        border-color: var(--medical-teal) !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.2) !important;
+    }
+    
+    /* === Example Buttons === */
+    .example-btn {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2)) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        color: var(--text-light) !important;
+        padding: 8px 16px !important;
+        border-radius: 8px !important;
+        font-size: 0.9rem !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .example-btn:hover {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3)) !important;
+        transform: translateY(-1px) !important;
+    }
+    
+    /* === Status Indicators === */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-success {
+        background: rgba(46, 204, 113, 0.2);
+        color: var(--success-green);
+        border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+    
+    .status-processing {
+        background: rgba(243, 156, 18, 0.2);
+        color: var(--warning-orange);
+        border: 1px solid rgba(243, 156, 18, 0.3);
+    }
+    
+    /* === Footer === */
+    .footer {
+        text-align: center;
+        padding: 20px;
+        margin-top: 24px;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.9rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .footer a {
+        color: var(--medical-teal);
+        text-decoration: none;
+    }
+    
+    /* === Responsive === */
+    @media (max-width: 768px) {
+        .header-banner h1 {
+            font-size: 1.8rem !important;
+        }
+        
+        .feature-pills {
+            justify-content: center;
+        }
+    }
+    
+    /* === Animations === */
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .processing-indicator {
+        animation: pulse 1.5s infinite;
+    }
     """
     
-    # Title
+    # Premium Title with HTML
     title_md = """
-    # 🏥 TriMedAgent - Medical AI Assistant
-    
-    **Hybrid ReAct Agent** for Medical Image Analysis
-    
-    - 🔬 **BiomedCLIP**: Image triage & classification
-    - 🎯 **Grounding DINO**: Object detection
-    - 🎭 **MedSAM**: Segmentation
-    - 🧠 **LLaVA-Med**: Visual reasoning
-    
-    ---
+    <div class="header-banner">
+        <h1>🏥 TriMedAgent</h1>
+        <p>Advanced Medical Image Analysis with Hybrid ReAct AI</p>
+        <div class="feature-pills">
+            <span class="feature-pill">🔬 BiomedCLIP Triage</span>
+            <span class="feature-pill">🎯 Grounding DINO Detection</span>
+            <span class="feature-pill">🎭 MedSAM Segmentation</span>
+            <span class="feature-pill">🧠 LLaVA-Med Reasoning</span>
+        </div>
+    </div>
     """
     
     def process_message(
@@ -336,70 +585,132 @@ def create_gradio_demo(orchestrator=None):
         except Exception:
             return None, example_query
 
-    # Build Gradio interface
-    with gr.Blocks(css=custom_css, title="TriMedAgent", theme=gr.themes.Soft()) as demo:
+    # Build Gradio interface with premium theme
+    with gr.Blocks(
+        css=custom_css, 
+        title="TriMedAgent - Medical AI", 
+        theme=gr.themes.Base(
+            primary_hue=gr.themes.colors.purple,
+            secondary_hue=gr.themes.colors.cyan,
+            neutral_hue=gr.themes.colors.slate,
+            font=gr.themes.GoogleFont("Inter"),
+        ).set(
+            body_background_fill="*neutral_950",
+            body_background_fill_dark="*neutral_950",
+            block_background_fill="*neutral_900",
+            block_background_fill_dark="*neutral_900",
+            border_color_primary="*neutral_700",
+            block_border_width="1px",
+            block_shadow="0 4px 20px rgba(0,0,0,0.3)",
+            button_primary_background_fill="*primary_500",
+            button_primary_background_fill_hover="*primary_400",
+        )
+    ) as demo:
         
-        gr.Markdown(title_md)
+        gr.HTML(title_md)
         
-        with gr.Row():
+        with gr.Row(equal_height=True):
             # Left column - Image input
             with gr.Column(scale=4):
+                gr.Markdown("### 📷 Input Image")
                 image_input = gr.Image(
-                    label="📷 Upload Medical Image",
+                    label="Upload Medical Image (X-ray, CT, MRI)",
                     type="pil",
                     height=400,
-                    elem_classes="image-preview"
+                    elem_classes=["image-upload-area", "glass-card"]
                 )
                 
                 with gr.Row():
-                    clear_btn = gr.Button("🗑️ Clear", variant="secondary")
+                    clear_btn = gr.Button("🗑️ Clear All", variant="secondary", elem_classes=["btn-secondary"])
                     
-                with gr.Accordion("⚙️ Settings", open=False):
-                    temperature = gr.Slider(0, 1, value=0.2, step=0.1, label="Temperature")
-                    max_tokens = gr.Slider(128, 1024, value=512, step=64, label="Max Tokens")
-                    enable_detection = gr.Checkbox(value=True, label="Enable Detection")
-                    enable_segmentation = gr.Checkbox(value=True, label="Enable Segmentation")
-                
-                with gr.Accordion("📚 Examples", open=False):
-                    gr.Markdown("Select an example to preload an image and query.")
+                with gr.Accordion("⚙️ Advanced Settings", open=False, elem_classes=["accordion"]):
+                    temperature = gr.Slider(
+                        0, 1, value=0.2, step=0.1, 
+                        label="🌡️ Temperature",
+                        info="Lower = more focused, Higher = more creative"
+                    )
+                    max_tokens = gr.Slider(
+                        128, 1024, value=512, step=64, 
+                        label="📝 Max Response Length"
+                    )
                     with gr.Row():
-                        example_chest = gr.Button("🫁 Chest X-ray: Nodules", variant="secondary")
-                        example_mri = gr.Button("🧠 Brain MRI: Tumor", variant="secondary")
-                    # Handlers wired after all components are defined
+                        enable_detection = gr.Checkbox(
+                            value=True, 
+                            label="🎯 Enable Detection",
+                            info="Grounding DINO"
+                        )
+                        enable_segmentation = gr.Checkbox(
+                            value=True, 
+                            label="🎭 Enable Segmentation",
+                            info="MedSAM"
+                        )
+                
+                with gr.Accordion("📚 Quick Examples", open=True, elem_classes=["accordion"]):
+                    gr.Markdown("*Click to load sample image and query*")
+                    with gr.Row():
+                        example_chest = gr.Button(
+                            "🫁 Chest X-ray: Find Nodules", 
+                            elem_classes=["example-btn"]
+                        )
+                        example_mri = gr.Button(
+                            "🧠 Brain MRI: Detect Tumor", 
+                            elem_classes=["example-btn"]
+                        )
+                    with gr.Row():
+                        example_cardio = gr.Button(
+                            "❤️ Check Cardiomegaly", 
+                            elem_classes=["example-btn"]
+                        )
+                        example_pneumonia = gr.Button(
+                            "🦠 Detect Pneumonia", 
+                            elem_classes=["example-btn"]
+                        )
             
             # Right column - Chat
             with gr.Column(scale=6):
+                gr.Markdown("### 💬 AI Analysis Chat")
                 chatbot = gr.Chatbot(
-                    label="💬 Chat",
-                    height=350,
-                    elem_classes="chat-container",
+                    label="Conversation",
+                    height=300,
+                    elem_classes=["chat-container", "glass-card"],
                     avatar_images=(None, "🤖"),
-                    type="messages"  # Use OpenAI-style format
+                    type="messages",
+                    show_copy_button=True
                 )
                 
                 with gr.Row():
                     text_input = gr.Textbox(
-                        placeholder="Ask about the medical image...",
+                        placeholder="💬 Ask about the medical image... (e.g., 'Find nodules in the lungs')",
                         label="",
                         scale=8,
-                        container=False
+                        container=False,
+                        elem_classes=["glass-card"]
                     )
-                    submit_btn = gr.Button("🚀 Send", variant="primary", scale=1)
+                    submit_btn = gr.Button(
+                        "🚀 Analyze", 
+                        variant="primary", 
+                        scale=2,
+                        elem_classes=["btn-primary"]
+                    )
                 
+                gr.Markdown("### 📊 Analysis Result")
                 output_image = gr.Image(
-                    label="📊 Analysis Result",
+                    label="Annotated Result",
                     type="pil",
-                    height=300,
-                    elem_classes="result-image"
+                    height=350,
+                    elem_classes=["result-display", "glass-card"],
+                    show_download_button=True
                 )
         
         # Footer
-        gr.Markdown("""
-        ---
-        **⚠️ Disclaimer**: This tool is for research/educational purposes only. 
-        Not intended for clinical diagnosis. Always consult healthcare professionals.
-        
-        Built with ❤️ using [TriMedAgent](https://github.com/ngnam1104/TriMedAgent)
+        gr.HTML("""
+        <div class="footer">
+            <p>⚠️ <strong>Disclaimer:</strong> This tool is for research/educational purposes only. 
+            Not intended for clinical diagnosis. Always consult healthcare professionals.</p>
+            <p>Built with ❤️ using 
+            <a href="https://github.com/ngnam1104/TriMedAgent" target="_blank">TriMedAgent</a> | 
+            Powered by LLaVA-Med, Grounding DINO, MedSAM, BiomedCLIP</p>
+        </div>
         """)
         
         # Event handlers
@@ -422,11 +733,19 @@ def create_gradio_demo(orchestrator=None):
         
         # Wire example buttons now that text_input is defined
         example_chest.click(
-            lambda: load_local_example("images/example_chest.png", "Find any nodules in the lungs"),
+            lambda: load_local_example("images/example_chest.png", "Find any nodules or suspicious lesions in the lungs"),
             outputs=[image_input, text_input]
         )
         example_mri.click(
-            lambda: load_local_example("images/example_mri.png", "Find any tumors in the brain"),
+            lambda: load_local_example("images/example_mri.png", "Detect any tumors or abnormal masses in the brain"),
+            outputs=[image_input, text_input]
+        )
+        example_cardio.click(
+            lambda: load_local_example("images/example_chest.png", "Check for cardiomegaly and evaluate heart size"),
+            outputs=[image_input, text_input]
+        )
+        example_pneumonia.click(
+            lambda: load_local_example("images/example_chest.png", "Look for signs of pneumonia or lung infiltrates"),
             outputs=[image_input, text_input]
         )
     
