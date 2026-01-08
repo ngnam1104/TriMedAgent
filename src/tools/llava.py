@@ -103,12 +103,14 @@ class LLaVATool:
             logger.info(f"Loading LLaVA from {self.model_name}...")
             print(f"🤖 Loading LLaVA on {self.device}...")
             
-            # Set max memory per GPU to avoid OOM
-            max_memory = {
-                0: "12GiB",  # Reserve some memory for other models
-                1: "12GiB",
-                "cpu": "24GiB"
-            }
+            # Set max memory per GPU dynamically based on available GPUs
+            max_memory = {"cpu": "24GiB"}
+            if torch.cuda.is_available():
+                n_gpus = torch.cuda.device_count()
+                for i in range(n_gpus):
+                    # Reserve ~12GB per GPU (leave room for other models)
+                    max_memory[i] = "12GiB"
+                logger.info(f"Detected {n_gpus} GPU(s), max_memory: {max_memory}")
             
             if self.quantize_4bit and "cuda" in str(self.device):
                 logger.info("Using 4-bit quantization for memory efficiency")
