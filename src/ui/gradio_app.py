@@ -62,18 +62,18 @@ class ConversationState:
         """Add assistant response."""
         self.messages.append(("assistant", (text, image)))
     
-    def get_history(self) -> List[Tuple[str, str]]:
-        """Get chat history for Gradio Chatbot."""
+    def get_history(self) -> List[Dict[str, str]]:
+        """Get chat history for Gradio Chatbot (OpenAI-style messages format)."""
         history = []
         for role, content in self.messages:
             if role == "user":
-                history.append((content, None))
+                history.append({"role": "user", "content": content})
             else:
                 if isinstance(content, tuple):
                     text, img = content
-                    history.append((None, text))
+                    history.append({"role": "assistant", "content": text})
                 else:
-                    history.append((None, content))
+                    history.append({"role": "assistant", "content": content})
         return history
     
     def clear(self):
@@ -373,7 +373,8 @@ def create_gradio_demo(orchestrator=None):
                     label="💬 Chat",
                     height=350,
                     elem_classes="chat-container",
-                    avatar_images=(None, "🤖")
+                    avatar_images=(None, "🤖"),
+                    type="messages"  # Use OpenAI-style format
                 )
                 
                 with gr.Row():
@@ -456,12 +457,22 @@ def launch_demo(
     except ImportError:
         pass
     
-    demo.queue().launch(
-        share=share,
-        server_port=port,
-        debug=debug,
-        show_error=True
-    )
+    # Try specified port, fallback to auto-select if busy
+    try:
+        demo.queue().launch(
+            share=share,
+            server_port=port,
+            debug=debug,
+            show_error=True
+        )
+    except OSError:
+        print(f"⚠️ Port {port} busy, using auto-select...")
+        demo.queue().launch(
+            share=share,
+            server_port=None,  # Auto-select available port
+            debug=debug,
+            show_error=True
+        )
 
 
 # =============================================================================
