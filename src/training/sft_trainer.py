@@ -41,9 +41,9 @@ logger = logging.getLogger(__name__)
 class SFTConfig:
     """Configuration for SFT training"""
     
-    # Model - using unsloth for efficiency
-    base_model: str = "unsloth/llava-v1.5-7b-hf-bnb-4bit"
-    use_unsloth: bool = True  # Use unsloth for 2x faster training
+    # Model - LLaVA-Med for medical imaging
+    base_model: str = "chaoyinshe/llava-med-v1.5-mistral-7b-hf"
+    use_unsloth: bool = False  # LLaVA-Med not supported by unsloth, use standard peft
     
     # LoRA Configuration
     lora_r: int = 64
@@ -414,7 +414,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Train TriMed-Agent SFT")
-    parser.add_argument("--base_model", type=str, default="unsloth/llava-v1.5-7b-hf-bnb-4bit")
+    parser.add_argument("--base_model", type=str, default="chaoyinshe/llava-med-v1.5-mistral-7b-hf")
     parser.add_argument("--dataset", type=str, default="data/sft_dataset")
     parser.add_argument("--output_dir", type=str, default="checkpoints/sft_adapter")
     parser.add_argument("--lora_r", type=int, default=64)

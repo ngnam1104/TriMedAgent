@@ -56,8 +56,8 @@ logger = logging.getLogger(__name__)
 class GRPOConfig:
     """Configuration for GRPO training"""
     
-    # Model
-    base_model: str = "unsloth/llava-v1.5-7b-hf-bnb-4bit"
+    # Model - LLaVA-Med for medical imaging
+    base_model: str = "chaoyinshe/llava-med-v1.5-mistral-7b-hf"
     sft_adapter: str = "checkpoints/sft_adapter/final"
     
     # GRPO hyperparameters
@@ -612,7 +612,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Train TriMed-Agent with GRPO")
-    parser.add_argument("--base_model", type=str, default="unsloth/llava-v1.5-7b-hf-bnb-4bit")
+    parser.add_argument("--base_model", type=str, default="chaoyinshe/llava-med-v1.5-mistral-7b-hf")
     parser.add_argument("--sft_adapter", type=str, required=True)
     parser.add_argument("--dataset", type=str, default="data/rl_dataset")
     parser.add_argument("--output_dir", type=str, default="checkpoints/rl_adapter")
