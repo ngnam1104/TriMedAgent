@@ -191,9 +191,10 @@ class MedicalDataProcessor:
         question = random.choice(self.QUESTION_TEMPLATES)
         question = question.replace("{target}", class_name)
         
-        # Generate plan JSON
+        # Generate plan JSON (4-field format)
         plan = {
             "thought": f"Cần kiểm tra {class_name} trong ảnh X-quang này.",
+            "tool": "Vision",
             "action": tool_info["action"],
             "action_input": {
                 "prompt": tool_info["prompt"]
@@ -218,10 +219,11 @@ class MedicalDataProcessor:
     ) -> Dict[str, Any]:
         """Create a RAG training example (no image)"""
         
-        # For theory questions, use RAG tool
+        # For theory questions, use RAG tool (4-field format)
         plan = {
             "thought": f"Đây là câu hỏi lý thuyết về {topic}. Cần sử dụng RAG.",
-            "action": "RAG",
+            "tool": "Knowledge",
+            "action": "Medical_RAG",
             "action_input": {
                 "query": question
             }

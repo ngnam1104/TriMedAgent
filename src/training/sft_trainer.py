@@ -10,10 +10,11 @@ Optimized for Single T4 GPU (Colab/Kaggle) using:
 - Gradient checkpointing
 
 Training Output:
-    Model learns to output structured JSON plans:
+    Model learns to output structured JSON plans (4-field format):
     {
         "thought": "reasoning...",
-        "action": "GroundingDINO",
+        "tool": "Vision|Knowledge",
+        "action": "GroundingDINO|Medical_RAG|...",
         "action_input": {"prompt": "target"}
     }
 """
